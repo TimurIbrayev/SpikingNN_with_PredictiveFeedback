@@ -1,0 +1,635 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Apr 21 17:58:00 2021
+
+@source: Nitin Rathi
+
+@author: tibrayev
+
+This is a script to train snn with feedback only.
+For training snn without feedback use snn.py.
+This script is extended and based on snn.py written by Nitin Rathi
+for the following work: https://github.com/nitin-rathi/hybrid-snn-conversion
+"""
+
+from __future__ import print_function
+import argparse
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torchvision import datasets, transforms, models
+from torch.utils.data.dataloader import DataLoader
+from torch.autograd import Variable
+from torchviz import make_dot
+from matplotlib import pyplot as plt
+from matplotlib.gridspec import GridSpec
+import numpy as np
+import datetime
+import pdb
+import sys
+import os
+import shutil
+import argparse
+
+from self_models.vgg_wFeedback_spiking_target_objective_3 import VGG_SNN_STDB_wFeedback
+
+
+class AverageMeter(object):
+    """Computes and stores the average and current value"""
+    def __init__(self, name, fmt=':f'):
+        self.name = name
+        self.fmt = fmt
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
+
+    def __str__(self):
+        fmtstr = '{name} {val' + self.fmt + '} ({avg' + self.fmt + '})'
+        return fmtstr.format(**self.__dict__)
+
+def find_threshold(batch_size=512, timesteps=2500, architecture='VGG16'):
+    
+    loader = torch.utils.data.DataLoader(dataset=trainset, batch_size=batch_size, shuffle=True)
+    
+    try:
+        obj = model.module
+    except AttributeError:
+        obj = model
+    
+    obj.network_update(timesteps=timesteps, leak=1.0)
+    
+
+    pos=0
+    thresholds=[]
+    
+    def find(layer, pos):
+        max_act=0
+        
+        f.write('\n Finding threshold for layer {}'.format(layer))
+        for batch_idx, (data, target) in enumerate(loader):
+            
+            if torch.cuda.is_available() and args.gpu:
+                data, target = data.cuda(), target.cuda()
+
+            with torch.no_grad():
+                model.eval()
+                output = model(data, find_max_mem=True, max_mem_layer=layer)
+                if output>max_act:
+                    max_act = output.item()
+
+                #f.write('\nBatch:{} Current:{:.4f} Max:{:.4f}'.format(batch_idx+1,output.item(),max_act))
+                if batch_idx==0:
+                    thresholds.append(max_act)
+                    pos = pos+1
+                    f.write(' {}'.format(thresholds))
+                    obj.threshold_update(scaling_factor=1.0, thresholds=thresholds[:])
+                    break
+        return pos
+
+    if architecture.lower().startswith('vgg'):              
+        for l in obj.features.named_children():
+            if isinstance(l[1], nn.Conv2d) and (not l[1].kernel_size == (2,2)):
+                pos = find(int(l[0]), pos)
+        
+        prev = int(l[0])+1              
+        for g in obj.generate.named_children():
+            if isinstance(g[1], nn.ConvTranspose2d) and (not g[1].kernel_size == (2,2)):
+                pos = find(prev+int(g[0]), pos)
+        
+        prev += int(g[0])+1
+        for c in obj.classifier.named_children():
+            if isinstance(c[1], nn.Linear):
+                if (prev+int(c[0])) == (len(obj.features) + len(obj.generate) + len(obj.classifier)-1):
+                    pass
+                else:
+                    pos = find(prev+int(c[0]), pos)
+    
+    f.write('\n ANN thresholds: {}'.format(thresholds))
+    return thresholds
+
+def train(epoch):
+
+    global learning_rate
+
+    model.module.network_update(timesteps=timesteps, leak=leak)
+    losses_cls      = AverageMeter('Loss_cls')
+    losses_recon    = AverageMeter('Loss_recon')
+    losses_total    = AverageMeter('Loss_total')
+    top1            = AverageMeter('Acc@1')
+
+    if epoch in lr_interval:
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = param_group['lr'] / lr_reduce
+            learning_rate = param_group['lr']
+    
+    #f.write('Epoch: {} Learning Rate: {:.2e}'.format(epoch,learning_rate_use))
+    
+    #total_loss = 0.0
+    #total_correct = 0
+    model.train()
+       
+    #current_time = start_time
+    #model.module.network_init(update_interval)
+
+    for batch_idx, (data, target) in enumerate(train_loader):
+               
+        if torch.cuda.is_available() and args.gpu:
+            data, target = data.cuda(), target.cuda()
+        
+        optimizer.zero_grad()
+        output, predictions, errors         = model(data)
+        loss_cls                            = F.cross_entropy(output,target)
+        # Reconstruction loss
+        if trade_off_type == 'last_t':
+            loss_reconstruction             = errors[-1].sum()/data.size(0)
+        elif trade_off_type == 'linear_over_t':
+            loss_reconstruction = None
+            for t in range(1, timesteps+1):
+                if t == 1:
+                    loss_reconstruction     = errors[t-1].sum()*t/timesteps
+                else:
+                    loss_reconstruction    += errors[t-1].sum()*t/timesteps
+            loss_reconstruction /= timesteps
+        
+        loss                                = loss_cls + trade_off*loss_reconstruction
+        
+        
+        loss.backward()
+        optimizer.step()        
+        pred = output.max(1,keepdim=True)[1]
+        correct = pred.eq(target.data.view_as(pred)).cpu().sum()
+
+        losses_cls.update(loss_cls.item(), data.size(0))
+        losses_recon.update(loss_reconstruction.item(), data.size(0))
+        losses_total.update(loss.item(), data.size(0))
+        top1.update(correct.item()/data.size(0), data.size(0))
+                
+        if (batch_idx+1) % train_acc_batches == 0:
+            temp1 = []
+            for value in model.module.threshold.values():
+                temp1 = temp1+[round(value.item(),2)]
+            f.write('\nEpoch: {}, batch: {}, train_loss: {:.4f} | {:.4f} | {:.4f}, train_acc: {:.4f}, threshold: {}, leak: {}, timesteps: {}'
+                    .format(epoch,
+                        batch_idx+1,
+                        losses_cls.avg,
+                        losses_recon.avg,
+                        losses_total.avg,
+                        top1.avg,
+                        temp1,
+                        model.module.leak.item(),
+                        model.module.timesteps
+                        )
+                    )
+    f.write('\nEpoch: {}, lr: {:.1e}, train_loss: {:.4f} | {:.4f} | {:.4f}, train_acc: {:.4f}'
+                    .format(epoch,
+                        learning_rate,
+                        losses_cls.avg,
+                        losses_recon.avg,
+                        losses_total.avg,
+                        top1.avg,
+                        )
+                    )
+      
+
+
+parser = argparse.ArgumentParser(description='SNN training')
+parser.add_argument('--gpu',                    default=True,               type=bool,      help='use gpu')
+parser.add_argument('-s','--seed',              default=0,                  type=int,       help='seed for random number')
+parser.add_argument('--dataset',                default='MNIST',            type=str,       help='dataset name', choices=['MNIST','CIFAR10','CIFAR100'])
+parser.add_argument('--batch_size',             default=64,                 type=int,       help='minibatch size')
+parser.add_argument('-a','--architecture',      default='VGG5_wFeedback',   type=str,       help='network architecture', choices=['VGG5_wFeedback_narrow', 'VGG5_wFeedback','VGG9_wFeedback'])
+parser.add_argument('-lr','--learning_rate',    default=1e-4,               type=float,     help='initial learning_rate')
+parser.add_argument('--pretrained_ann',         default='',                 type=str,       help='pretrained ANN model')
+parser.add_argument('--pretrained_snn',         default='',                 type=str,       help='pretrained SNN for inference')
+parser.add_argument('--test_only',              default=True,               type=bool,      help='perform only inference')
+parser.add_argument('--log',                    default=True,               type=bool,      help='to print the output on terminal or to log file')
+parser.add_argument('--epochs',                 default=100,                type=int,       help='number of training epochs')
+parser.add_argument('--lr_interval',            default='0.60 0.80 0.90',   type=str,       help='intervals at which to reduce lr, expressed as %%age of total epochs')
+parser.add_argument('--lr_reduce',              default=10,                 type=int,       help='reduction factor for learning rate')
+parser.add_argument('--timesteps',              default=50,                 type=int,       help='simulation timesteps')
+parser.add_argument('--leak',                   default=1.0,                type=float,     help='membrane leak')
+parser.add_argument('--scaling_factor',         default=0.7,                type=float,     help='scaling factor for thresholds at reduced timesteps')
+parser.add_argument('--default_threshold',      default=1.0,                type=float,     help='intial threshold to train SNN from scratch')
+parser.add_argument('--activation',             default='Linear',           type=str,       help='SNN activation function', choices=['Linear', 'STDB'])
+parser.add_argument('--alpha',                  default=0.3,                type=float,     help='parameter alpha for STDB')
+parser.add_argument('--beta',                   default=0.01,               type=float,     help='parameter beta for STDB')
+parser.add_argument('--optimizer',              default='Adam',             type=str,       help='optimizer for SNN backpropagation', choices=['SGD', 'Adam'])
+parser.add_argument('--weight_decay',           default=5e-4,               type=float,     help='weight decay parameter for the optimizer')    
+parser.add_argument('--momentum',               default=0.95,               type=float,     help='momentum parameter for the SGD optimizer')    
+parser.add_argument('--amsgrad',                default=True,               type=bool,      help='amsgrad parameter for Adam optimizer')
+parser.add_argument('--dropout',                default=0.3,                type=float,     help='dropout percentage for conv layers')
+parser.add_argument('--kernel_size',            default=3,                  type=int,       help='filter size for the conv layers')
+parser.add_argument('--test_acc_every_batch',   default=False,              type=bool,      help='print acc of every batch during inference')
+parser.add_argument('--train_acc_batches',      default=200,                type=int,       help='print training progress after this many batches')
+parser.add_argument('--devices',                default='0',                type=str,       help='list of gpu device(s)')
+
+parser.add_argument('--trade_off',              default=1.0,                type=float,     help='trade-off between classification and reconstruction losses')
+parser.add_argument('--trade_off_type',         default='last_t',           type=str,       help='trade-off type between classification and reconstruction losses', choices=['last_t', 'linear_over_t'])
+parser.add_argument('--epsilon',                default=0.1,                type=float,     help='epsilon bound under which neuron is considered predicted')
+
+args = parser.parse_args()
+
+os.environ['CUDA_VISIBLE_DEVICES'] = args.devices
+
+# Seed random number
+torch.manual_seed(args.seed)
+np.random.seed(args.seed)
+torch.cuda.manual_seed(args.seed)
+torch.cuda.manual_seed_all(args.seed)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+       
+dataset             = args.dataset
+batch_size          = args.batch_size
+architecture        = args.architecture
+learning_rate       = args.learning_rate
+pretrained_ann      = args.pretrained_ann
+pretrained_snn      = args.pretrained_snn
+epochs              = args.epochs
+lr_reduce           = args.lr_reduce
+timesteps           = args.timesteps
+leak                = args.leak
+scaling_factor      = args.scaling_factor
+default_threshold   = args.default_threshold
+activation          = args.activation
+alpha               = args.alpha
+beta                = args.beta  
+optimizer           = args.optimizer
+weight_decay        = args.weight_decay
+momentum            = args.momentum
+amsgrad             = args.amsgrad
+dropout             = args.dropout
+kernel_size         = args.kernel_size
+test_acc_every_batch= args.test_acc_every_batch
+train_acc_batches   = args.train_acc_batches
+trade_off           = args.trade_off
+trade_off_type      = args.trade_off_type
+epsilon             = args.epsilon
+
+values = args.lr_interval.split()
+lr_interval = []
+for value in values:
+    lr_interval.append(int(float(value)*args.epochs))
+
+log_file = './logs/snn/'
+try:
+    os.mkdir(log_file)
+except OSError:
+    pass 
+
+#identifier = 'snn_'+architecture.lower()+'_'+dataset.lower()+'_'+str(timesteps)+'_'+str(datetime.datetime.now())
+identifier = 'snn_'+architecture.lower()+'_'+dataset.lower()+'_'+str(timesteps)+'_tradeoff'+str(trade_off)+'_type'+trade_off_type.lower()+'_posthoc_analysis_obj3_epsilon_'+str(epsilon)
+log_file+=identifier+'.log'
+
+if args.log:
+    f = open(log_file, 'w', buffering=1)
+else:
+    f = sys.stdout
+
+if not pretrained_ann:
+    ann_file = './trained_models/ann/ann_'+architecture.lower()+'_'+dataset.lower()+'.pth'
+    if os.path.exists(ann_file):
+        val = input('\n Do you want to use the pretrained ANN {}? Y or N: '.format(ann_file))
+        if val.lower()=='y' or val.lower()=='yes':
+            pretrained_ann = ann_file
+
+f.write('\n Run on time: {}'.format(datetime.datetime.now()))
+
+f.write('\n\n Arguments: ')
+for arg in vars(args):
+    if arg == 'lr_interval':
+        f.write('\n\t {:20} : {}'.format(arg, lr_interval))
+    elif arg == 'pretrained_ann':
+        f.write('\n\t {:20} : {}'.format(arg, pretrained_ann))
+    else:
+        f.write('\n\t {:20} : {}'.format(arg, getattr(args,arg)))
+
+# Training settings
+
+if torch.cuda.is_available() and args.gpu:
+    torch.set_default_tensor_type('torch.cuda.FloatTensor')
+
+# if dataset == 'CIFAR10':
+#     normalize   = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+# elif dataset == 'CIFAR100':
+#     normalize   = transforms.Normalize((0.5071,0.4867,0.4408), (0.2675,0.2565,0.2761))
+# elif dataset == 'IMAGENET':
+#     normalize   = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+
+normalize       = transforms.Normalize(mean = [0.5, 0.5, 0.5], std = [0.5, 0.5, 0.5])
+
+if dataset in ['CIFAR10', 'CIFAR100']:
+    transform_train = transforms.Compose([
+                        transforms.RandomCrop(32, padding=4),
+                        transforms.RandomHorizontalFlip(),
+                        transforms.ToTensor(),
+                        normalize])
+    transform_test  = transforms.Compose([transforms.ToTensor(), normalize])
+
+if dataset == 'CIFAR10':
+    trainset    = datasets.CIFAR10(root = '~/Datasets/cifar_data', train = True, download = True, transform = transform_train)
+    testset     = datasets.CIFAR10(root='~/Datasets/cifar_data', train=False, download=True, transform = transform_test)
+    labels      = 10
+
+elif dataset == 'CIFAR100':
+    trainset    = datasets.CIFAR100(root = '~/Datasets/cifar_data', train = True, download = True, transform = transform_train)
+    testset     = datasets.CIFAR100(root='~/Datasets/cifar_data', train=False, download=True, transform = transform_test)
+    labels      = 100
+
+elif dataset == 'MNIST':
+    trainset   = datasets.MNIST(root='~/Datasets/mnist/', train=True, download=True, transform=transforms.ToTensor()
+        )
+    testset    = datasets.MNIST(root='~/Datasets/mnist/', train=False, download=True, transform=transforms.ToTensor())
+    labels = 10
+
+elif dataset == 'IMAGENET':
+    labels      = 1000
+    traindir    = os.path.join('/local/scratch/a/imagenet/imagenet2012/', 'train')
+    valdir      = os.path.join('/local/scratch/a/imagenet/imagenet2012/', 'val')
+    trainset    = datasets.ImageFolder(
+                        traindir,
+                        transforms.Compose([
+                            transforms.RandomResizedCrop(224),
+                            transforms.RandomHorizontalFlip(),
+                            transforms.ToTensor(),
+                            normalize,
+                        ]))
+    testset     = datasets.ImageFolder(
+                        valdir,
+                        transforms.Compose([
+                            transforms.Resize(256),
+                            transforms.CenterCrop(224),
+                            transforms.ToTensor(),
+                            normalize,
+                        ])) 
+
+train_loader    = DataLoader(trainset, batch_size=batch_size, shuffle=True)
+test_loader     = DataLoader(testset, batch_size=batch_size, shuffle=False)
+
+if architecture[0:3].lower() == 'vgg':
+    model = VGG_SNN_STDB_wFeedback(vgg_name = architecture, activation = activation, labels=labels, timesteps=timesteps, leak=leak, default_threshold=default_threshold, alpha=alpha, beta=beta, dropout=dropout, kernel_size=kernel_size, dataset=dataset)
+
+elif architecture[0:3].lower() == 'res':
+    raise NotImplementedError
+    #model = RESNET_SNN_STDB(resnet_name = architecture, activation = activation, labels=labels, timesteps=timesteps,leak=leak, default_threshold=default_threshold, alpha=alpha, beta=beta, dropout=dropout, dataset=dataset)
+
+# if freeze_conv:
+#     for param in model.features.parameters():
+#         param.requires_grad = False
+
+#Please comment this line if you find key mismatch error and uncomment the DataParallel after the if block
+model = nn.DataParallel(model) 
+
+if pretrained_ann:
+  
+    state = torch.load(pretrained_ann, map_location='cpu')
+    cur_dict = model.state_dict()     
+    for key in state['state_dict'].keys():
+        if key in cur_dict:
+            if (state['state_dict'][key].shape == cur_dict[key].shape):
+                cur_dict[key] = nn.Parameter(state['state_dict'][key].data)
+                f.write('\n Success: Loaded {} from {}'.format(key, pretrained_ann))
+            else:
+                f.write('\n Error: Size mismatch, size of loaded model {}, size of current model {}'.format(state['state_dict'][key].shape, model.state_dict()[key].shape))
+        else:
+            f.write('\n Error: Loaded weight {} not present in current model'.format(key))
+    model.load_state_dict(cur_dict)
+    f.write('\n Info: Accuracy of loaded ANN model: {}'.format(state['accuracy']))
+
+    #If thresholds present in loaded ANN file
+    if 'thresholds' in state.keys():
+        thresholds = state['thresholds']
+        f.write('\n Info: Thresholds loaded from trained ANN: {}'.format(thresholds))
+        try :
+            model.module.threshold_update(scaling_factor = scaling_factor, thresholds=thresholds[:])
+        except AttributeError:
+            model.threshold_update(scaling_factor = scaling_factor, thresholds=thresholds[:])
+    else:
+        thresholds = find_threshold(batch_size=512, timesteps=1000, architecture=architecture)
+        try:
+            model.module.threshold_update(scaling_factor = scaling_factor, thresholds=thresholds[:])
+        except AttributeError:
+            model.threshold_update(scaling_factor = scaling_factor, thresholds=thresholds[:])
+        
+        #Save the threhsolds in the ANN file
+        temp = {}
+        for key,value in state.items():
+            temp[key] = value
+        temp['thresholds'] = thresholds
+        torch.save(temp, pretrained_ann)
+
+if pretrained_snn:
+            
+    state = torch.load(pretrained_snn, map_location='cpu')
+    cur_dict = model.state_dict()     
+    for key in state['state_dict'].keys():
+        
+        if key in cur_dict:
+            if (state['state_dict'][key].shape == cur_dict[key].shape):
+                cur_dict[key] = nn.Parameter(state['state_dict'][key].data)
+                f.write('\n Loaded {} from {}'.format(key, pretrained_snn))
+            else:
+                f.write('\n Size mismatch {}, size of loaded model {}, size of current model {}'.format(key, state['state_dict'][key].shape, model.state_dict()[key].shape))
+        else:
+            f.write('\n Loaded weight {} not present in current model'.format(key))
+    model.load_state_dict(cur_dict)
+
+    if 'thresholds' in state.keys():
+        try:
+            if state['leak_mem']:
+                state['leak'] = state['leak_mem']
+        except:
+            pass
+        if state['timesteps']!=timesteps or state['leak']!=leak:
+            f.write('\n Timesteps/Leak mismatch between loaded SNN and current simulation timesteps/leak, current timesteps/leak {}/{}, loaded timesteps/leak {}/{}'.format(timesteps, leak, state['timesteps'], state['leak']))
+        thresholds = state['thresholds']
+        model.module.threshold_update(scaling_factor = 1.0, thresholds=thresholds[:])
+    else:
+        f.write('\n Loaded SNN model does not have thresholds')
+
+f.write('\n {}'.format(model))
+
+#model = nn.DataParallel(model) 
+if torch.cuda.is_available() and args.gpu:
+    model.cuda()
+
+if optimizer == 'Adam':
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate, amsgrad=amsgrad, weight_decay=weight_decay)
+elif optimizer == 'SGD':
+    optimizer = optim.SGD(model.parameters(), lr=learning_rate, weight_decay=weight_decay, momentum=momentum)
+
+f.write('\n {}'.format(optimizer))
+max_accuracy = 0
+
+#print(model)
+#f.write('\n Threshold: {}'.format(model.module.threshold))
+
+start_time = datetime.datetime.now()
+epoch = 1
+# for epoch in range(1, epochs):
+#     if not args.test_only:
+#         train(epoch)
+#     test(epoch)
+model.module.epsilon = epsilon
+
+
+losses_cls      = AverageMeter('Loss_cls')
+losses_recon    = AverageMeter('Loss_recon')
+losses_total    = AverageMeter('Loss_total')
+top1   = AverageMeter('Acc@1')
+
+with torch.no_grad():
+    model.eval()
+        
+    for batch_idx, (data, target) in enumerate(test_loader):
+                        
+        if torch.cuda.is_available() and args.gpu:
+            data, target = data.cuda(), target.cuda()
+        
+        output, predictions, errors, outputs    = model(data)
+        loss_cls                                = F.cross_entropy(output,target)
+        # Reconstruction loss
+        if trade_off_type == 'last_t':
+            loss_reconstruction             = errors[-1].sum()/data.size(0)
+        elif trade_off_type == 'linear_over_t':
+            loss_reconstruction = None
+            for t in range(1, timesteps+1):
+                if t == 1:
+                    loss_reconstruction     = errors[t-1].sum()*t/timesteps
+                else:
+                    loss_reconstruction    += errors[t-1].sum()*t/timesteps
+            loss_reconstruction /= timesteps
+            
+        loss                                = loss_cls + trade_off*loss_reconstruction
+        
+        pred    = output.max(1,keepdim=True)[1]
+        correct = pred.eq(target.data.view_as(pred)).cpu().sum()
+        losses_cls.update(loss_cls.item(), data.size(0))
+        losses_recon.update(loss_reconstruction.item(), data.size(0))
+        losses_total.update(loss.item(), data.size(0))
+        top1.update(correct.item()/data.size(0), data.size(0))
+        
+        if batch_idx == 0:
+            plt.figure()
+            plt.imshow(predictions[-1][0,0].detach().cpu(), vmin=0.0, vmax=1.0)
+            filename = './trained_models/snn/'+identifier+'.png'
+            # plt.show()
+            plt.savefig(filename)
+        
+        if test_acc_every_batch:
+            f.write('\nAccuracy: {}/{}({:.4f})'
+                .format(
+                correct.item(),
+                data.size(0),
+                top1.avg
+                )
+            )
+        
+    temp1 = []
+    for value in model.module.threshold.values():
+        temp1 = temp1+[value.item()]    
+    
+
+    if top1.avg>max_accuracy:
+        max_accuracy = top1.avg
+        state = {
+                'accuracy'              : max_accuracy,
+                'epoch'                 : epoch,
+                'state_dict'            : model.state_dict(),
+                'optimizer'             : optimizer.state_dict(),
+                'thresholds'            : temp1,
+                'timesteps'             : timesteps,
+                'leak'                  : leak,
+                'activation'            : activation
+            }
+        try:
+            os.mkdir('./trained_models/snn/')
+        except OSError:
+            pass 
+        filename = './trained_models/snn/'+identifier+'.pth'
+        torch.save(state,filename)    
+        
+
+    f.write(' test_loss: {:.4f} | {:.4f} | {:.4f}, test_acc: {:.4f}, best: {:.4f} time: {}'.format(
+        losses_cls.avg,
+        losses_recon.avg,
+        losses_total.avg,
+        top1.avg,
+        max_accuracy,
+        datetime.timedelta(seconds=(datetime.datetime.now() - start_time).seconds)
+        )
+    )
+
+
+f.write('\n Highest accuracy: {:.4f}'.format(max_accuracy))
+
+# =============================================================================
+#               POST HOC QUALITATIVE ANALYSIS
+# =============================================================================
+import torchvision.utils as vutils
+import matplotlib.animation as animation
+
+# sample = data[6].clone().detach().unsqueeze(0)
+# corruption = torch.cat((sample[:,:,:11,:]*0.83, sample[:,:,11:,:]*0.0), dim=2)
+sample = data[5].clone().detach().unsqueeze(0)
+corruption = torch.cat((sample[:,:,:14,:]*0.85, sample[:,:,14:,:]*0.0), dim=2)
+plt.imshow(corruption[0,0].cpu())
+sample_corrupted = sample - corruption
+plt.imshow(sample_corrupted[0,0].cpu())
+
+
+
+model.module.epsilon=0.0
+output_default , predictions_default , errors_default , outputs_default    = model(sample_corrupted)
+for t in range(len(outputs_default)):
+    print(outputs_default[t][0].argmax())
+
+
+
+
+predictions_over_t = []
+for t in range(len(predictions)):
+    imgs = ((predictions_default[t].detach() - 0.5)/(1.0-0.5))*(1.0-0.0) - 0.0
+    # predictions_over_t.append(vutils.make_grid(predictions[t].cpu(), padding=2, normalize=True, scale_each=True))
+    predictions_over_t.append(vutils.make_grid(imgs.cpu(), padding=2))
+
+plt.figure(), plt.imshow(sample_corrupted[0,0].cpu())
+plt.figure(), plt.imshow(imgs[0,0].cpu())
+
+fig = plt.figure()
+plt.axis("off")
+ax = plt.axes()
+ims = []
+for i in range(len(predictions_over_t)):
+    frm = plt.text(0.5, 1.01, ('Timestep:' + str(i)), horizontalalignment='center', verticalalignment='bottom', transform=ax.transAxes)
+    ims.append([plt.imshow(np.transpose(predictions_over_t[i],(1,2,0)), animated=True),
+                frm])
+#ims = [[plt.imshow(np.transpose(i,(1,2,0)), animated=True)] for i in predictions_over_t]
+ani = animation.ArtistAnimation(fig, ims, interval=500, repeat_delay=20, blit=False)
+
+
+
+
+model.module.epsilon=0.1
+output_contrast , predictions_contrast , errors_contrast , outputs_contrast    = model(sample_corrupted)
+for t in range(len(outputs_contrast)):
+    print(outputs_contrast[t][0].argmax())
+
+
+
+
+
+
+

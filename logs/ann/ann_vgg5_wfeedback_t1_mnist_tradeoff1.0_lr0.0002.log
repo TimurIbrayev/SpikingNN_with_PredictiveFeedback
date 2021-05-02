@@ -1,0 +1,168 @@
+
+ Run on time: 2021-04-21 22:28:13.172394
+
+ Arguments:
+	 gpu                  : True
+	 log                  : True
+	 seed                 : 0
+	 dataset              : MNIST
+	 batch_size           : 64
+	 architecture         : VGG5_wFeedback
+	 learning_rate        : 0.0002
+	 pretrained_ann       : 
+	 test_only            : False
+	 epochs               : 100
+	 lr_interval          : [60, 80, 90]
+	 lr_reduce            : 10
+	 optimizer            : Adam
+	 weight_decay         : 0.0005
+	 momentum             : 0.9
+	 amsgrad              : True
+	 dropout              : 0.2
+	 kernel_size          : 3
+	 devices              : 0
+	 timesteps            : 1
+	 trade_off            : 1.0
+ DataParallel(
+  (module): VGG_wFeedback(
+    (features): Sequential(
+      (0): Conv2d(1, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (1): ReLU(inplace=True)
+      (2): Conv2d(64, 64, kernel_size=(2, 2), stride=(2, 2), bias=False)
+      (3): Conv2d(64, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (4): ReLU(inplace=True)
+      (5): Dropout(p=0.2, inplace=False)
+      (6): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (7): ReLU(inplace=True)
+      (8): Conv2d(128, 128, kernel_size=(2, 2), stride=(2, 2), bias=False)
+    )
+    (generate): Sequential(
+      (0): ConvTranspose2d(128, 128, kernel_size=(2, 2), stride=(2, 2), bias=False)
+      (1): ConvTranspose2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (2): LeakyReLU(negative_slope=0.01)
+      (3): Dropout(p=0.2, inplace=False)
+      (4): ConvTranspose2d(128, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (5): LeakyReLU(negative_slope=0.01)
+      (6): ConvTranspose2d(64, 64, kernel_size=(2, 2), stride=(2, 2), bias=False)
+      (7): ConvTranspose2d(64, 1, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (8): Sigmoid()
+    )
+    (classifier): Sequential(
+      (0): Linear(in_features=6272, out_features=4096, bias=False)
+      (1): ReLU(inplace=True)
+      (2): Dropout(p=0.5, inplace=False)
+      (3): Linear(in_features=4096, out_features=4096, bias=False)
+      (4): ReLU(inplace=True)
+      (5): Dropout(p=0.5, inplace=False)
+      (6): Linear(in_features=4096, out_features=10, bias=False)
+    )
+  )
+)
+ Adam (
+Parameter Group 0
+    amsgrad: True
+    betas: (0.9, 0.999)
+    eps: 1e-08
+    lr: 0.0002
+    weight_decay: 0.0005
+)
+ Epoch: 1, lr: 2.0e-04, train_loss: 0.2756 | 6.6013 | 6.8768, train_acc: 0.9134 test_loss: 0.1084 | 1.6813 | 1.7897, test_acc: 0.9633, best: 0.9633, time: 0:01:08
+ Epoch: 2, lr: 2.0e-04, train_loss: 0.1270 | 1.7147 | 1.8417, train_acc: 0.9603 test_loss: 0.0836 | 1.2419 | 1.3256, test_acc: 0.9741, best: 0.9741, time: 0:00:51
+ Epoch: 3, lr: 2.0e-04, train_loss: 0.0970 | 1.4165 | 1.5134, train_acc: 0.9696 test_loss: 0.0809 | 1.1073 | 1.1881, test_acc: 0.9735, best: 0.9741, time: 0:00:46
+ Epoch: 4, lr: 2.0e-04, train_loss: 0.0823 | 1.2662 | 1.3485, train_acc: 0.9744 test_loss: 0.0721 | 0.9569 | 1.0290, test_acc: 0.9773, best: 0.9773, time: 0:01:06
+ Epoch: 5, lr: 2.0e-04, train_loss: 0.0712 | 1.1687 | 1.2399, train_acc: 0.9778 test_loss: 0.0623 | 0.9192 | 0.9815, test_acc: 0.9792, best: 0.9792, time: 0:01:05
+ Epoch: 6, lr: 2.0e-04, train_loss: 0.0643 | 1.0997 | 1.1640, train_acc: 0.9802 test_loss: 0.0523 | 0.8526 | 0.9049, test_acc: 0.9831, best: 0.9831, time: 0:01:06
+ Epoch: 7, lr: 2.0e-04, train_loss: 0.0600 | 1.0460 | 1.1059, train_acc: 0.9823 test_loss: 0.0613 | 0.8100 | 0.8714, test_acc: 0.9803, best: 0.9831, time: 0:00:57
+ Epoch: 8, lr: 2.0e-04, train_loss: 0.0568 | 1.0038 | 1.0606, train_acc: 0.9822 test_loss: 0.0467 | 0.7918 | 0.8385, test_acc: 0.9842, best: 0.9842, time: 0:01:06
+ Epoch: 9, lr: 2.0e-04, train_loss: 0.0554 | 0.9694 | 1.0248, train_acc: 0.9825 test_loss: 0.0579 | 0.7558 | 0.8137, test_acc: 0.9806, best: 0.9842, time: 0:00:58
+ Epoch: 10, lr: 2.0e-04, train_loss: 0.0535 | 0.9402 | 0.9936, train_acc: 0.9834 test_loss: 0.0454 | 0.7580 | 0.8034, test_acc: 0.9854, best: 0.9854, time: 0:01:05
+ Epoch: 11, lr: 2.0e-04, train_loss: 0.0516 | 0.9157 | 0.9673, train_acc: 0.9840 test_loss: 0.0377 | 0.7258 | 0.7635, test_acc: 0.9876, best: 0.9876, time: 0:01:06
+ Epoch: 12, lr: 2.0e-04, train_loss: 0.0488 | 0.8956 | 0.9444, train_acc: 0.9847 test_loss: 0.0446 | 0.7244 | 0.7690, test_acc: 0.9854, best: 0.9876, time: 0:00:57
+ Epoch: 13, lr: 2.0e-04, train_loss: 0.0491 | 0.8780 | 0.9271, train_acc: 0.9844 test_loss: 0.0428 | 0.7209 | 0.7638, test_acc: 0.9864, best: 0.9876, time: 0:00:58
+ Epoch: 14, lr: 2.0e-04, train_loss: 0.0481 | 0.8622 | 0.9103, train_acc: 0.9847 test_loss: 0.0416 | 0.6854 | 0.7270, test_acc: 0.9868, best: 0.9876, time: 0:00:58
+ Epoch: 15, lr: 2.0e-04, train_loss: 0.0460 | 0.8482 | 0.8943, train_acc: 0.9852 test_loss: 0.0413 | 0.6848 | 0.7261, test_acc: 0.9874, best: 0.9876, time: 0:00:58
+ Epoch: 16, lr: 2.0e-04, train_loss: 0.0456 | 0.8353 | 0.8809, train_acc: 0.9857 test_loss: 0.0392 | 0.6797 | 0.7190, test_acc: 0.9873, best: 0.9876, time: 0:00:57
+ Epoch: 17, lr: 2.0e-04, train_loss: 0.0450 | 0.8236 | 0.8685, train_acc: 0.9856 test_loss: 0.0412 | 0.6619 | 0.7031, test_acc: 0.9860, best: 0.9876, time: 0:00:58
+ Epoch: 18, lr: 2.0e-04, train_loss: 0.0457 | 0.8129 | 0.8586, train_acc: 0.9854 test_loss: 0.0356 | 0.6576 | 0.6932, test_acc: 0.9883, best: 0.9883, time: 0:01:06
+ Epoch: 19, lr: 2.0e-04, train_loss: 0.0423 | 0.8021 | 0.8444, train_acc: 0.9866 test_loss: 0.0375 | 0.6589 | 0.6964, test_acc: 0.9869, best: 0.9883, time: 0:00:57
+ Epoch: 20, lr: 2.0e-04, train_loss: 0.0420 | 0.7927 | 0.8347, train_acc: 0.9867 test_loss: 0.0376 | 0.6613 | 0.6989, test_acc: 0.9890, best: 0.9890, time: 0:01:03
+ Epoch: 21, lr: 2.0e-04, train_loss: 0.0439 | 0.7841 | 0.8280, train_acc: 0.9858 test_loss: 0.0345 | 0.6375 | 0.6720, test_acc: 0.9887, best: 0.9890, time: 0:00:57
+ Epoch: 22, lr: 2.0e-04, train_loss: 0.0415 | 0.7760 | 0.8174, train_acc: 0.9866 test_loss: 0.0338 | 0.6412 | 0.6750, test_acc: 0.9889, best: 0.9890, time: 0:00:58
+ Epoch: 23, lr: 2.0e-04, train_loss: 0.0398 | 0.7676 | 0.8074, train_acc: 0.9871 test_loss: 0.0398 | 0.6256 | 0.6653, test_acc: 0.9856, best: 0.9890, time: 0:00:58
+ Epoch: 24, lr: 2.0e-04, train_loss: 0.0375 | 0.7607 | 0.7981, train_acc: 0.9879 test_loss: 0.0377 | 0.6279 | 0.6656, test_acc: 0.9875, best: 0.9890, time: 0:00:57
+ Epoch: 25, lr: 2.0e-04, train_loss: 0.0396 | 0.7545 | 0.7940, train_acc: 0.9871 test_loss: 0.0416 | 0.6277 | 0.6694, test_acc: 0.9869, best: 0.9890, time: 0:00:57
+ Epoch: 26, lr: 2.0e-04, train_loss: 0.0385 | 0.7481 | 0.7866, train_acc: 0.9881 test_loss: 0.0321 | 0.6089 | 0.6410, test_acc: 0.9892, best: 0.9892, time: 0:01:05
+ Epoch: 27, lr: 2.0e-04, train_loss: 0.0381 | 0.7418 | 0.7799, train_acc: 0.9880 test_loss: 0.0314 | 0.6099 | 0.6413, test_acc: 0.9897, best: 0.9897, time: 0:01:06
+ Epoch: 28, lr: 2.0e-04, train_loss: 0.0391 | 0.7366 | 0.7756, train_acc: 0.9873 test_loss: 0.0326 | 0.6080 | 0.6406, test_acc: 0.9903, best: 0.9903, time: 0:01:06
+ Epoch: 29, lr: 2.0e-04, train_loss: 0.0377 | 0.7308 | 0.7685, train_acc: 0.9880 test_loss: 0.0360 | 0.6154 | 0.6513, test_acc: 0.9881, best: 0.9903, time: 0:00:57
+ Epoch: 30, lr: 2.0e-04, train_loss: 0.0374 | 0.7257 | 0.7631, train_acc: 0.9879 test_loss: 0.0354 | 0.5982 | 0.6336, test_acc: 0.9880, best: 0.9903, time: 0:00:48
+ Epoch: 31, lr: 2.0e-04, train_loss: 0.0372 | 0.7204 | 0.7575, train_acc: 0.9882 test_loss: 0.0327 | 0.5979 | 0.6305, test_acc: 0.9891, best: 0.9903, time: 0:00:41
+ Epoch: 32, lr: 2.0e-04, train_loss: 0.0385 | 0.7161 | 0.7546, train_acc: 0.9872 test_loss: 0.0326 | 0.5966 | 0.6292, test_acc: 0.9892, best: 0.9903, time: 0:00:46
+ Epoch: 33, lr: 2.0e-04, train_loss: 0.0347 | 0.7117 | 0.7464, train_acc: 0.9891 test_loss: 0.0358 | 0.5922 | 0.6280, test_acc: 0.9884, best: 0.9903, time: 0:00:57
+ Epoch: 34, lr: 2.0e-04, train_loss: 0.0349 | 0.7077 | 0.7426, train_acc: 0.9885 test_loss: 0.0342 | 0.5896 | 0.6238, test_acc: 0.9886, best: 0.9903, time: 0:00:57
+ Epoch: 35, lr: 2.0e-04, train_loss: 0.0368 | 0.7039 | 0.7406, train_acc: 0.9880 test_loss: 0.0335 | 0.5881 | 0.6215, test_acc: 0.9895, best: 0.9903, time: 0:00:57
+ Epoch: 36, lr: 2.0e-04, train_loss: 0.0349 | 0.7006 | 0.7354, train_acc: 0.9891 test_loss: 0.0332 | 0.5920 | 0.6251, test_acc: 0.9884, best: 0.9903, time: 0:00:57
+ Epoch: 37, lr: 2.0e-04, train_loss: 0.0338 | 0.6966 | 0.7304, train_acc: 0.9892 test_loss: 0.0308 | 0.5898 | 0.6207, test_acc: 0.9902, best: 0.9903, time: 0:00:57
+ Epoch: 38, lr: 2.0e-04, train_loss: 0.0341 | 0.6930 | 0.7271, train_acc: 0.9886 test_loss: 0.0329 | 0.5835 | 0.6164, test_acc: 0.9896, best: 0.9903, time: 0:00:57
+ Epoch: 39, lr: 2.0e-04, train_loss: 0.0345 | 0.6899 | 0.7244, train_acc: 0.9888 test_loss: 0.0401 | 0.5919 | 0.6320, test_acc: 0.9866, best: 0.9903, time: 0:00:57
+ Epoch: 40, lr: 2.0e-04, train_loss: 0.0326 | 0.6865 | 0.7191, train_acc: 0.9894 test_loss: 0.0360 | 0.5868 | 0.6228, test_acc: 0.9889, best: 0.9903, time: 0:00:57
+ Epoch: 41, lr: 2.0e-04, train_loss: 0.0328 | 0.6838 | 0.7166, train_acc: 0.9894 test_loss: 0.0278 | 0.5788 | 0.6065, test_acc: 0.9909, best: 0.9909, time: 0:01:04
+ Epoch: 42, lr: 2.0e-04, train_loss: 0.0336 | 0.6810 | 0.7146, train_acc: 0.9892 test_loss: 0.0310 | 0.5866 | 0.6176, test_acc: 0.9896, best: 0.9909, time: 0:00:57
+ Epoch: 43, lr: 2.0e-04, train_loss: 0.0327 | 0.6785 | 0.7112, train_acc: 0.9895 test_loss: 0.0316 | 0.5732 | 0.6047, test_acc: 0.9897, best: 0.9909, time: 0:00:58
+ Epoch: 44, lr: 2.0e-04, train_loss: 0.0333 | 0.6753 | 0.7086, train_acc: 0.9891 test_loss: 0.0334 | 0.5711 | 0.6045, test_acc: 0.9898, best: 0.9909, time: 0:00:58
+ Epoch: 45, lr: 2.0e-04, train_loss: 0.0319 | 0.6725 | 0.7044, train_acc: 0.9897 test_loss: 0.0332 | 0.5807 | 0.6138, test_acc: 0.9890, best: 0.9909, time: 0:00:57
+ Epoch: 46, lr: 2.0e-04, train_loss: 0.0322 | 0.6701 | 0.7023, train_acc: 0.9893 test_loss: 0.0357 | 0.5666 | 0.6023, test_acc: 0.9873, best: 0.9909, time: 0:00:58
+ Epoch: 47, lr: 2.0e-04, train_loss: 0.0310 | 0.6680 | 0.6990, train_acc: 0.9904 test_loss: 0.0281 | 0.5650 | 0.5931, test_acc: 0.9905, best: 0.9909, time: 0:00:57
+ Epoch: 48, lr: 2.0e-04, train_loss: 0.0301 | 0.6659 | 0.6960, train_acc: 0.9898 test_loss: 0.0289 | 0.5663 | 0.5951, test_acc: 0.9895, best: 0.9909, time: 0:00:58
+ Epoch: 49, lr: 2.0e-04, train_loss: 0.0323 | 0.6634 | 0.6957, train_acc: 0.9898 test_loss: 0.0279 | 0.5675 | 0.5954, test_acc: 0.9908, best: 0.9909, time: 0:00:57
+ Epoch: 50, lr: 2.0e-04, train_loss: 0.0313 | 0.6608 | 0.6921, train_acc: 0.9900 test_loss: 0.0363 | 0.5678 | 0.6041, test_acc: 0.9878, best: 0.9909, time: 0:00:58
+ Epoch: 51, lr: 2.0e-04, train_loss: 0.0300 | 0.6591 | 0.6892, train_acc: 0.9901 test_loss: 0.0284 | 0.5619 | 0.5903, test_acc: 0.9913, best: 0.9913, time: 0:01:06
+ Epoch: 52, lr: 2.0e-04, train_loss: 0.0294 | 0.6567 | 0.6860, train_acc: 0.9903 test_loss: 0.0253 | 0.5642 | 0.5896, test_acc: 0.9918, best: 0.9918, time: 0:01:05
+ Epoch: 53, lr: 2.0e-04, train_loss: 0.0301 | 0.6551 | 0.6852, train_acc: 0.9905 test_loss: 0.0321 | 0.5643 | 0.5965, test_acc: 0.9904, best: 0.9918, time: 0:00:58
+ Epoch: 54, lr: 2.0e-04, train_loss: 0.0302 | 0.6533 | 0.6834, train_acc: 0.9903 test_loss: 0.0319 | 0.5646 | 0.5965, test_acc: 0.9899, best: 0.9918, time: 0:00:57
+ Epoch: 55, lr: 2.0e-04, train_loss: 0.0305 | 0.6512 | 0.6817, train_acc: 0.9899 test_loss: 0.0327 | 0.5579 | 0.5906, test_acc: 0.9900, best: 0.9918, time: 0:00:57
+ Epoch: 56, lr: 2.0e-04, train_loss: 0.0283 | 0.6494 | 0.6777, train_acc: 0.9915 test_loss: 0.0297 | 0.5579 | 0.5876, test_acc: 0.9895, best: 0.9918, time: 0:01:00
+ Epoch: 57, lr: 2.0e-04, train_loss: 0.0297 | 0.6476 | 0.6773, train_acc: 0.9904 test_loss: 0.0262 | 0.5607 | 0.5869, test_acc: 0.9918, best: 0.9918, time: 0:00:57
+ Epoch: 58, lr: 2.0e-04, train_loss: 0.0303 | 0.6461 | 0.6764, train_acc: 0.9903 test_loss: 0.0294 | 0.5563 | 0.5857, test_acc: 0.9910, best: 0.9918, time: 0:00:58
+ Epoch: 59, lr: 2.0e-04, train_loss: 0.0279 | 0.6441 | 0.6721, train_acc: 0.9910 test_loss: 0.0265 | 0.5556 | 0.5821, test_acc: 0.9909, best: 0.9918, time: 0:00:57
+ Epoch: 60, lr: 2.0e-05, train_loss: 0.0174 | 0.6411 | 0.6584, train_acc: 0.9947 test_loss: 0.0212 | 0.5563 | 0.5775, test_acc: 0.9932, best: 0.9932, time: 0:01:05
+ Epoch: 61, lr: 2.0e-05, train_loss: 0.0143 | 0.6405 | 0.6548, train_acc: 0.9960 test_loss: 0.0206 | 0.5562 | 0.5768, test_acc: 0.9930, best: 0.9932, time: 0:00:42
+ Epoch: 62, lr: 2.0e-05, train_loss: 0.0132 | 0.6399 | 0.6532, train_acc: 0.9963 test_loss: 0.0205 | 0.5554 | 0.5759, test_acc: 0.9931, best: 0.9932, time: 0:00:39
+ Epoch: 63, lr: 2.0e-05, train_loss: 0.0124 | 0.6398 | 0.6522, train_acc: 0.9966 test_loss: 0.0205 | 0.5548 | 0.5753, test_acc: 0.9931, best: 0.9932, time: 0:00:53
+ Epoch: 64, lr: 2.0e-05, train_loss: 0.0122 | 0.6393 | 0.6515, train_acc: 0.9967 test_loss: 0.0203 | 0.5551 | 0.5754, test_acc: 0.9930, best: 0.9932, time: 0:00:57
+ Epoch: 65, lr: 2.0e-05, train_loss: 0.0119 | 0.6392 | 0.6511, train_acc: 0.9970 test_loss: 0.0204 | 0.5551 | 0.5755, test_acc: 0.9930, best: 0.9932, time: 0:00:57
+ Epoch: 66, lr: 2.0e-05, train_loss: 0.0114 | 0.6392 | 0.6506, train_acc: 0.9972 test_loss: 0.0202 | 0.5545 | 0.5747, test_acc: 0.9928, best: 0.9932, time: 0:00:57
+ Epoch: 67, lr: 2.0e-05, train_loss: 0.0111 | 0.6387 | 0.6498, train_acc: 0.9970 test_loss: 0.0207 | 0.5543 | 0.5750, test_acc: 0.9931, best: 0.9932, time: 0:00:57
+ Epoch: 68, lr: 2.0e-05, train_loss: 0.0103 | 0.6386 | 0.6490, train_acc: 0.9977 test_loss: 0.0207 | 0.5553 | 0.5760, test_acc: 0.9932, best: 0.9932, time: 0:00:57
+ Epoch: 69, lr: 2.0e-05, train_loss: 0.0112 | 0.6385 | 0.6497, train_acc: 0.9971 test_loss: 0.0204 | 0.5540 | 0.5744, test_acc: 0.9928, best: 0.9932, time: 0:00:57
+ Epoch: 70, lr: 2.0e-05, train_loss: 0.0112 | 0.6385 | 0.6497, train_acc: 0.9972 test_loss: 0.0203 | 0.5545 | 0.5748, test_acc: 0.9935, best: 0.9935, time: 0:01:04
+ Epoch: 71, lr: 2.0e-05, train_loss: 0.0107 | 0.6381 | 0.6488, train_acc: 0.9974 test_loss: 0.0205 | 0.5530 | 0.5735, test_acc: 0.9932, best: 0.9935, time: 0:00:57
+ Epoch: 72, lr: 2.0e-05, train_loss: 0.0109 | 0.6380 | 0.6490, train_acc: 0.9974 test_loss: 0.0206 | 0.5550 | 0.5755, test_acc: 0.9932, best: 0.9935, time: 0:00:57
+ Epoch: 73, lr: 2.0e-05, train_loss: 0.0109 | 0.6376 | 0.6485, train_acc: 0.9975 test_loss: 0.0205 | 0.5533 | 0.5738, test_acc: 0.9931, best: 0.9935, time: 0:00:58
+ Epoch: 74, lr: 2.0e-05, train_loss: 0.0105 | 0.6375 | 0.6480, train_acc: 0.9975 test_loss: 0.0206 | 0.5535 | 0.5741, test_acc: 0.9933, best: 0.9935, time: 0:00:58
+ Epoch: 75, lr: 2.0e-05, train_loss: 0.0108 | 0.6371 | 0.6480, train_acc: 0.9974 test_loss: 0.0203 | 0.5539 | 0.5742, test_acc: 0.9931, best: 0.9935, time: 0:00:58
+ Epoch: 76, lr: 2.0e-05, train_loss: 0.0106 | 0.6372 | 0.6479, train_acc: 0.9974 test_loss: 0.0208 | 0.5539 | 0.5746, test_acc: 0.9932, best: 0.9935, time: 0:00:57
+ Epoch: 77, lr: 2.0e-05, train_loss: 0.0108 | 0.6370 | 0.6478, train_acc: 0.9976 test_loss: 0.0211 | 0.5544 | 0.5755, test_acc: 0.9930, best: 0.9935, time: 0:00:57
+ Epoch: 78, lr: 2.0e-05, train_loss: 0.0110 | 0.6367 | 0.6478, train_acc: 0.9974 test_loss: 0.0208 | 0.5545 | 0.5752, test_acc: 0.9928, best: 0.9935, time: 0:00:58
+ Epoch: 79, lr: 2.0e-05, train_loss: 0.0105 | 0.6365 | 0.6470, train_acc: 0.9978 test_loss: 0.0207 | 0.5540 | 0.5747, test_acc: 0.9929, best: 0.9935, time: 0:00:57
+ Epoch: 80, lr: 2.0e-06, train_loss: 0.0099 | 0.6364 | 0.6463, train_acc: 0.9980 test_loss: 0.0205 | 0.5534 | 0.5739, test_acc: 0.9928, best: 0.9935, time: 0:00:57
+ Epoch: 81, lr: 2.0e-06, train_loss: 0.0098 | 0.6362 | 0.6460, train_acc: 0.9980 test_loss: 0.0205 | 0.5536 | 0.5741, test_acc: 0.9928, best: 0.9935, time: 0:00:58
+ Epoch: 82, lr: 2.0e-06, train_loss: 0.0101 | 0.6362 | 0.6463, train_acc: 0.9979 test_loss: 0.0204 | 0.5534 | 0.5738, test_acc: 0.9930, best: 0.9935, time: 0:00:58
+ Epoch: 83, lr: 2.0e-06, train_loss: 0.0102 | 0.6364 | 0.6466, train_acc: 0.9978 test_loss: 0.0204 | 0.5529 | 0.5732, test_acc: 0.9928, best: 0.9935, time: 0:00:58
+ Epoch: 84, lr: 2.0e-06, train_loss: 0.0099 | 0.6364 | 0.6463, train_acc: 0.9979 test_loss: 0.0205 | 0.5534 | 0.5739, test_acc: 0.9930, best: 0.9935, time: 0:00:57
+ Epoch: 85, lr: 2.0e-06, train_loss: 0.0100 | 0.6361 | 0.6462, train_acc: 0.9980 test_loss: 0.0205 | 0.5527 | 0.5731, test_acc: 0.9931, best: 0.9935, time: 0:00:58
+ Epoch: 86, lr: 2.0e-06, train_loss: 0.0101 | 0.6361 | 0.6462, train_acc: 0.9978 test_loss: 0.0205 | 0.5535 | 0.5741, test_acc: 0.9930, best: 0.9935, time: 0:00:58
+ Epoch: 87, lr: 2.0e-06, train_loss: 0.0099 | 0.6362 | 0.6461, train_acc: 0.9978 test_loss: 0.0205 | 0.5531 | 0.5736, test_acc: 0.9932, best: 0.9935, time: 0:00:57
+ Epoch: 88, lr: 2.0e-06, train_loss: 0.0099 | 0.6361 | 0.6460, train_acc: 0.9978 test_loss: 0.0205 | 0.5535 | 0.5740, test_acc: 0.9932, best: 0.9935, time: 0:00:58
+ Epoch: 89, lr: 2.0e-06, train_loss: 0.0096 | 0.6361 | 0.6457, train_acc: 0.9980 test_loss: 0.0205 | 0.5536 | 0.5740, test_acc: 0.9931, best: 0.9935, time: 0:00:57
+ Epoch: 90, lr: 2.0e-07, train_loss: 0.0100 | 0.6360 | 0.6460, train_acc: 0.9978 test_loss: 0.0205 | 0.5534 | 0.5739, test_acc: 0.9931, best: 0.9935, time: 0:00:58
+ Epoch: 91, lr: 2.0e-07, train_loss: 0.0099 | 0.6361 | 0.6460, train_acc: 0.9977 test_loss: 0.0205 | 0.5532 | 0.5737, test_acc: 0.9931, best: 0.9935, time: 0:00:57
+ Epoch: 92, lr: 2.0e-07, train_loss: 0.0098 | 0.6363 | 0.6461, train_acc: 0.9979 test_loss: 0.0205 | 0.5533 | 0.5738, test_acc: 0.9932, best: 0.9935, time: 0:00:48
+ Epoch: 93, lr: 2.0e-07, train_loss: 0.0102 | 0.6364 | 0.6466, train_acc: 0.9980 test_loss: 0.0205 | 0.5534 | 0.5738, test_acc: 0.9932, best: 0.9935, time: 0:00:41
+ Epoch: 94, lr: 2.0e-07, train_loss: 0.0097 | 0.6363 | 0.6460, train_acc: 0.9980 test_loss: 0.0205 | 0.5532 | 0.5737, test_acc: 0.9932, best: 0.9935, time: 0:00:46
+ Epoch: 95, lr: 2.0e-07, train_loss: 0.0098 | 0.6361 | 0.6459, train_acc: 0.9980 test_loss: 0.0205 | 0.5533 | 0.5737, test_acc: 0.9932, best: 0.9935, time: 0:00:58
+ Epoch: 96, lr: 2.0e-07, train_loss: 0.0098 | 0.6362 | 0.6460, train_acc: 0.9978 test_loss: 0.0205 | 0.5533 | 0.5738, test_acc: 0.9932, best: 0.9935, time: 0:00:57
+ Epoch: 97, lr: 2.0e-07, train_loss: 0.0097 | 0.6362 | 0.6458, train_acc: 0.9982 test_loss: 0.0205 | 0.5534 | 0.5739, test_acc: 0.9932, best: 0.9935, time: 0:00:57
+ Epoch: 98, lr: 2.0e-07, train_loss: 0.0098 | 0.6363 | 0.6461, train_acc: 0.9980 test_loss: 0.0205 | 0.5534 | 0.5738, test_acc: 0.9932, best: 0.9935, time: 0:00:57
+ Epoch: 99, lr: 2.0e-07, train_loss: 0.0103 | 0.6362 | 0.6465, train_acc: 0.9977 test_loss: 0.0205 | 0.5532 | 0.5737, test_acc: 0.9933, best: 0.9935, time: 0:00:58
+ Highest accuracy: 0.9935
