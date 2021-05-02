@@ -9,7 +9,7 @@ The motivation of this work is to increase input spike sparsity based on the sam
 # Implementation
 The mechanism is implemented by adding feedback connections which are trained to predict/reconstruct input signal (2D image in this case) and block the input neurons if its corresponding pixel value is predicted within some epsilon bound.
 
-![Gif example of input neuron blocking](https://github.com/TimurIbrayev/SpikingNN_with_PredictiveFeedback/blob/main/trained_models/snn/snn_vgg5_wfeedback_mnist_50_tradeoff1.0_typelast_t_posthoc_analysis_predictions_and_binarydiff_epsilon%3D0.1.gif | width="40")
+![Gif example of input neuron blocking](https://github.com/TimurIbrayev/SpikingNN_with_PredictiveFeedback/blob/main/trained_models/snn/snn_vgg5_wfeedback_mnist_50_tradeoff1.0_typelast_t_posthoc_analysis_predictions_and_binarydiff_epsilon%3D0.1.gif | width=40)
 
 # Extensions in this repo
 1. Added both ANN and SNN models with feedback connections.
