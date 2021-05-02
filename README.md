@@ -43,4 +43,4 @@ These files are:
 Default parameters used for simulations can be found at the begining of the corresponding log files, which can be found in logs/ann and logs/snn for ANN and SNN models with feedback.
 
 # Acknowledgement
-Timur would like to thank Nitin Rathi for the clear explanations of how models in original repo are implemented and perform SNN processing.
+Timur would like to thank Nitin Rathi for the clear explanations of how models in original work are implemented and perform SNN processing.
